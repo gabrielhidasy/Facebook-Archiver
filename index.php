@@ -1,110 +1,168 @@
+<?php
+
+  if(isset($_GET['post_id']) && !empty($_GET['post_id'])){
+
+    if(isset($_GET['action']) && !empty($_GET['action'])){
+
+      if(isset($_GET['from_id']) && !empty($_GET['from_id'])){
+        $from_id = $_GET['from_id'];
+      }
+      $action = $_GET['action'];
+      $post_id = $_GET['post_id'];
+
+    }
+  }
+
+
+?>
+
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
+    <title> Facebook Archiver </title>
 
-<title>Facebook Archiver - Main</title>
+    <link rel="stylesheet" href="css/style.css" media="screen" />
 
-<link rel="stylesheet" href="css/style.css" media="screen" />
-<script src="js/fbarchiver.js"></script>
+    <script src="js/jquery-1.7.2.min.js"></script>
 
-</head>
+  </head>
+  <body>
+    <div id="fb-root"></div>
+    <script>
+      // Load the SDK Asynchronously
+      (function(d){
+         var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
+         if (d.getElementById(id)) {return;}
+         js = d.createElement('script'); js.id = id; js.async = true;
+         js.src = "//connect.facebook.net/en_US/all.js";
+         ref.parentNode.insertBefore(js, ref);
+       }(document));
 
-<body>
+      // Init the SDK upon load
+      window.fbAsyncInit = function() {
+        FB.init({
+          appId      : '411476732220632', // App ID
+          channelUrl : '//'+window.location.hostname+'/channel', // Path to your Channel File
+          status     : true, // check login status
+          cookie     : true, // enable cookies to allow the server to access the session
+          xfbml      : true  // parse XFBML
+        });
 
-	<div id="wraper">
+        // listen for and handle auth.statusChange events
+        FB.Event.subscribe('auth.statusChange', function(response) {
+          if (response.authResponse) {
 
-		<div id="fb-root"></div>
-		<!-- Starts up facebook's JS API -->
-		<script>
 
-		window.fbAsyncInit = function() {
-	      FB.init({
-	        appId      : '411476732220632', // App ID
-	        status     : true, // check login status
-	        cookie     : true, // enable cookies to allow the server to access the session
-	        xfbml      : true  // parse XFBML
-	      });
-	    };
+            // user has auth'd your app and is logged into Facebook
+            FB.api('/me', function(me){
+              if (me.name) {
+                document.getElementById('auth-displayname').innerHTML = me.name;
+                document.getElementById('auth-loggedout').style.display = 'none';
+                document.getElementById('auth-loggedin').style.display = 'block';
 
-	    // Load the SDK Asynchronously
-	    (function(d){
-	      var js, id = 'facebook-jssdk'; if (d.getElementById(id)) {return;}
-	      js = d.createElement('script'); js.id = id; js.async = true;
-	      js.src = "//connect.facebook.net/en_US/all.js";
-	      d.getElementsByTagName('head')[0].appendChild(js);
-	    }(document));
-  </script>
+                <?php if(isset($action)){
+                      if($action == 'insert'){ ?>
+                        $.get('http://stormy-beach-2068.herokuapp.com/core/insert.php',
+                            {"post_id": <?php echo $post_id; ?>, "from_id" : <?php echo $from_id;?>, "user_id" : me.id}, function(res){
+                              console.log(res);
+                            alert("Post was successfully archived!");
+                          window.history.back();
+                        });
 
-		<div id="header">
+                <?php  } else if($action == 'delete')  { ?>
 
-			<h1>Welcome to Facebook Archiver!</h1>
+                        $.get('http://stormy-beach-2068.herokuapp.com/core/unarchive.php',
+                        {"post_id": "\"" + <?php echo $post_id?> +"\"", "user_id" : me.id}, function(){
+                          alert("Post was successfully unarchived!");
+                          }); 
+                <?php }} else {?>     
+  
 
-			<p>Easily manage the posts that interested you.</p>
+                  $.get('http://fbarchiver.herokuapp.com/core/archives.php',
+                    {'user_id' : me.id}, function(response){
+                      var parsedResponse = $.parseJSON(response);
+                     
+                      for(obj in parsedResponse){
 
-		</div>
+                        if(parsedResponse[obj]){
+                          FB.api("/" + parsedResponse[obj].from_id + "_" + parsedResponse[obj].post_id, function(data){
+                            $("#posts-wrapper").append("<div class='single-post'> <a href='https://facebook.com/" + data.from.id + "'>"+data.from.name + "</a>");
+                            if(data.message)
+                              $("#posts-wrapper").append("<div class='post-content'>"+ data.message + "</div>");
+                            if(data.picture)
+                              $("#posts-wrapper").append("<div class='post-content'><img src='"+ data.picture + "'/></div>");
+                            if(data.link)
+                              $("#posts-wrapper").append("<div class='post-content'><a href='"+ data.link + "'>"+ data.name + "</a></div>");
+
+                            if(data.video)
+                              $("#posts-wrapper").append("<div class='post-content'><embed autoplay='false'  width='100' height='100' src='" +data.video +"'></embed>");
+                            $("#posts-wrapper").append("</div>");
+
+                          });
+                        }
+  
+                      }
+                    });
+                  <?php } ?>
+
+              }
+            });
+
+
+          } else {
+            // user has not auth'd your app, or is not logged into Facebook
+            document.getElementById('auth-loggedout').style.display = 'block';
+            document.getElementById('auth-loggedin').style.display = 'none';
+          }
+        });
+
+        // respond to clicks on the login and logout links
+        document.getElementById('auth-loginlink').addEventListener('click', function(){
+          FB.login(function(){}, {scope: "read_stream"});
+        });
+        document.getElementById('auth-logoutlink').addEventListener('click', function(){
+          FB.logout();
+        }); 
+      } 
+    </script>
+
+    <div id="wrapper">
+  
+	<div id="header">
+   		<h1>Welcome to Facebook Archiver</h1> 	
+      <p> Easily store your favorite posts. <a href="http://stormy-beach-2068.herokuapp.com/chrome_extension/chrome_extension.crx">Download the Chrome extension</a> </p>
+		<div>
 
 		<div id="content">
+			<div id="auth-status">
+		        <div id="auth-loggedout">
+		          <a href="#" class="btn" id="auth-loginlink">Login</a>
+		        </div>
+		       
+		        <div id="auth-loggedin" style="display:none">
+		       	  <div class="display-name">
+              	Hi, <span id="auth-displayname"></span>  
+  	    			  <a href="#" class="btn" id="auth-logoutlink">logout</a>
+              <div>
+            <div id="posts">
+              
+              <h2> Check out the posts you've archived! </h2>
 
-			<div id="posts">
+              <div id="posts-wrapper">
+                
+              </div>
 
-				<div class="post">
+            </div>              
 
-					<?php 
-
-					$curl = curl_init("https://graph.facebook.com/me/home?access_token=AAAAAAITEghMBAMqohtqByzYgLLTAYgKH3tj4RiYZBKlXRR3KYx1ZCX7qxCuV0NUaBJ8ThiezAXAU44p6Mlb0E9UEMWpHe4ePbbgAdkPpgzPE8ZAZA72F");
-					curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-					$json = curl_exec($curl);
-					curl_close($curl);
-					$enconded = json_decode($json);
-
-					/*
-					 echo "<pre>";
-					print_r($enconded->data);
-					echo "</pre>";
-					*/
-
-					foreach ($enconded->data as $key => $value) {
-
-
-						echo "<pre>";
-
-						// echo $value->id . "\n";
-						echo "<h2>" . $value->from->name . "</h2>\n";
-						// echo $value->from->id . "\n";
-							
-						if(isset($value->message))
-							echo "<h3> $value->message </h3>\n";
-
-						echo $value->created_time . "\n";
-
-						if(isset($value->picture))
-							print "<img src = $value->picture />\n";
-
-						if(isset($value->link))
-							echo "<a href = $value->link> $value->link </a>";
-
-						echo "</pre>";
-
-
-					}
-
-					?>
-
-					<span class="date"></span>
-					<blockquote class="post-data"></blockquote>
-				</div>
-
+	    		 </div>
 			</div>
 
-		</div>
-
-		<div id="footer">
-			<p>Designed and built by ++completar++</p>
-			<p>
-				Checkout the source code at <a href="#">Github</a>.
-			</p>
-		</div>
 	</div>
 
-</body>
+  <div id="footer">
+    <p> Designed and built by <a href="http://facebook.com/gabrielhidasy">Gabriel Hidasy Rezende</a>, <a href="http://facebook.com/gabriel.massaki">Gabriel Massaki Wakano Bezerra</a>, <a href="http://facebook.com/lucast182">Lucas Tadeu Teixeira</a> e <a href="http://facebook.com/tlgimenes">Tiago Lobato Gimenes</a>. </p>
+ </div>
+  </div>
+
+  </body>
 </html>
