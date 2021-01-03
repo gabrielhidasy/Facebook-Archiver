@@ -2,6 +2,8 @@
 Facebook Archiver
 ===================
 
+This is abandoned and unmaintained, keeping it up for the memories.
+
 Have you ever liked a post, and then tried to find it later and
 had a lot of work to do that?
 
